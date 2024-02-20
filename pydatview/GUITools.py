@@ -208,9 +208,11 @@ class FilterToolPanel(GUIToolPanel):
         lb1 = wx.StaticText(self, -1, 'Filter:')
         self.cbFilters = wx.ComboBox(self, choices=[filt['name'] for filt in self._DEFAULT_FILTERS], style=wx.CB_READONLY)
         self.lbParamName = wx.StaticText(self, -1, '            :')
+        self.lbParamName_n1 = wx.StaticText(self, -1, '            :')
         self.cbFilters.SetSelection(0)
         #self.tParam = wx.TextCtrl(self, wx.ID_ANY,, size = (30,-1), style=wx.TE_PROCESS_ENTER)
         self.tParam = wx.SpinCtrlDouble(self, value='11', size=wx.Size(60,-1))
+        self.tParam_n1 = wx.SpinCtrlDouble(self, value='11', size=wx.Size(60,-1))
         self.lbInfo = wx.StaticText( self, -1, '')
 
 
@@ -227,6 +229,8 @@ class FilterToolPanel(GUIToolPanel):
         horzSizer.Add(self.cbFilters   ,0,flag = wx.LEFT|wx.CENTER,border = 1)
         horzSizer.Add(self.lbParamName ,0,flag = wx.LEFT|wx.CENTER,border = 5)
         horzSizer.Add(self.tParam      ,0,flag = wx.LEFT|wx.CENTER,border = 1)
+        horzSizer.Add(self.lbParamName_n1 ,0,flag = wx.LEFT|wx.CENTER,border = 5)
+        horzSizer.Add(self.tParam_n1      ,0,flag = wx.LEFT|wx.CENTER,border = 1)
 
         vertSizer = wx.BoxSizer(wx.VERTICAL)
         vertSizer.Add(self.lbInfo  ,0, flag = wx.LEFT          ,border = 5)
@@ -244,6 +248,7 @@ class FilterToolPanel(GUIToolPanel):
         if platform.system()=='Windows':
             # See issue https://github.com/wxWidgets/Phoenix/issues/1762
             self.spintxt = self.tParam.Children[0]
+            self.spintxt_n1 = self.tParam_n1.Children[0]
             assert isinstance(self.spintxt, wx.TextCtrl)
             self.spintxt.Bind(wx.EVT_CHAR_HOOK, self.onParamChangeChar)
 
@@ -263,8 +268,11 @@ class FilterToolPanel(GUIToolPanel):
         iFilt = self.cbFilters.GetSelection()
         filt = self._DEFAULT_FILTERS[iFilt]
         self.lbParamName.SetLabel(filt['paramName']+':')
+        self.lbParamName_n1.SetLabel(filt['paramName_n1']+':')
         self.tParam.SetRange(filt['paramRange'][0], filt['paramRange'][1])
         self.tParam.SetIncrement(filt['increment'])
+        self.tParam_n1.SetRange(filt['paramRange_n1'][0], filt['paramRange_n1'][1])
+        self.tParam_n1.SetIncrement(filt['increment_n1'])
 
         parentFilt=self.parent.plotDataOptions['Filter']
         # Value
@@ -272,6 +280,7 @@ class FilterToolPanel(GUIToolPanel):
             self.tParam.SetValue(parentFilt['param'])
         else:
             self.tParam.SetValue(filt['param'])
+            self.tParam_n1.SetValue(filt['param_n1'])
 
     def onToggleCompute(self, event=None, init=False):
         """
@@ -309,6 +318,7 @@ class FilterToolPanel(GUIToolPanel):
         iFilt = self.cbFilters.GetSelection()
         filt = self._DEFAULT_FILTERS[iFilt].copy()
         filt['param']=np.float(self.spintxt.Value)
+        filt['param_n1']=np.float(self.spintxt_n1.Value)
         return filt
 
     def onPlot(self, event=None):

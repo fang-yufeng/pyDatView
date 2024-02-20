@@ -6,9 +6,12 @@ import pandas as pd
 
 # --- List of available filters
 FILTERS=[
-    {'name':'Moving average','param':100,'paramName':'Window Size','paramRange':[0,100000],'increment':1},
-    {'name':'Low pass 1st order','param':1.0,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.1},
-    {'name':'High pass 1st order','param':1.0,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.1},
+    {'name':'Moving average','param':100,'paramName':'Window Size','paramRange':[0,100000],'increment':1,
+     'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
+    {'name':'Low pass 1st order','param':0.2,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
+     'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
+    {'name':'High pass 1st order','param':1.0,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
+     'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
 ]
 
 SAMPLERS=[
@@ -199,16 +202,21 @@ def moving_average(a, n=3) :
     ret=ret[n - 1:] / n
     return ret
 
-def lowpass1(y, dt, fc=3) :
-    """ 
+def lowpass1(y, dt, fc=3, n1=5) :
+    """
     1st order low pass filter
     """
-    tau=1/(2*np.pi*fc)
-    alpha=dt/(tau+dt)
-    y_filt=np.zeros(y.shape)
-    y_filt[0]=y[0]
-    for i in np.arange(1,len(y)):
-        y_filt[i]=alpha*y[i] + (1-alpha)*y_filt[i-1]
+    from scipy import signal
+    fs = 1 / dt
+    wp1 = fc * 2 / fs
+    ws1 = fc * 1.2 * 2 / fs  # 提高截至频率
+    rp1 = 0.1
+    rs1 = 1
+    # [n1, wn1] = signal.buttord(wp1, ws1, rp1, rs1)
+    # n1 = 6
+    wn1 = fc/(fs/2)
+    [b1, a1] = signal.butter(n1, wn1)
+    y_filt = signal.filtfilt(b1, a1, y)
     return y_filt
 
 def highpass1(y, dt, fc=3) :
@@ -232,7 +240,7 @@ def applyFilter(x, y,filtDict):
         return moving_average(y, n=np.round(filtDict['param']).astype(int))
     elif filtDict['name']=='Low pass 1st order':
         dt = x[1]-x[0]
-        return lowpass1(y, dt=dt, fc=filtDict['param'])
+        return lowpass1(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
     elif filtDict['name']=='High pass 1st order':
         dt = x[1]-x[0]
         return highpass1(y, dt=dt, fc=filtDict['param'])
