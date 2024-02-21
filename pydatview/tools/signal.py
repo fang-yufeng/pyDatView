@@ -8,10 +8,18 @@ import pandas as pd
 FILTERS=[
     {'name':'Moving average','param':100,'paramName':'Window Size','paramRange':[0,100000],'increment':1,
      'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
-    {'name':'Low pass 1st order','param':0.2,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
+    {'name':'Low pass simpack','param':0.2,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
+     'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
+    {'name':'Low pass python','param':0.2,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
      'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
     {'name':'High pass 1st order','param':1.0,'paramName':'Cutoff Freq.','paramRange':[0.0001,100000],'increment':0.01,
      'param_n1':5,'paramName_n1':'n1.','paramRange_n1':[1,100000],'increment_n1':1},
+    {'name': 'Band pass simpack', 'param': 0.44, 'paramName': 'Center Freq.', 'paramRange': [0.0001, 100000],
+     'increment': 0.01,
+     'param_n1': 4, 'paramName_n1': 'n1.', 'paramRange_n1': [1, 100000], 'increment_n1': 2},
+    {'name': 'Band pass python', 'param': 0.44, 'paramName': 'Center Freq.', 'paramRange': [0.0001, 100000],
+     'increment': 0.01,
+     'param_n1': 4, 'paramName_n1': 'n1.', 'paramRange_n1': [1, 100000], 'increment_n1': 2},
 ]
 
 SAMPLERS=[
@@ -202,20 +210,75 @@ def moving_average(a, n=3) :
     ret=ret[n - 1:] / n
     return ret
 
-def lowpass1(y, dt, fc=3, n1=5) :
+def lowpass_simpack(y, dt, fc=3, n1=5) :
+    """
+    1st order low pass filter
+    """
+    from scipy import signal
+    fs = 1 / dt
+    # n1 = 5
+    wn1 = fc / (fs/2)
+    [b1, a1] = signal.butter(n1, wn1, btype='lowpass')
+    y_filt = signal.filtfilt(b1, a1, y)
+    return y_filt
+
+def lowpass_python(y, dt, fc=3, n1=5) :
     """
     1st order low pass filter
     """
     from scipy import signal
     fs = 1 / dt
     wp1 = fc * 2 / fs
-    ws1 = fc * 1.2 * 2 / fs  # 提高截至频率
-    rp1 = 0.1
-    rs1 = 1
-    # [n1, wn1] = signal.buttord(wp1, ws1, rp1, rs1)
-    # n1 = 6
-    wn1 = fc/(fs/2)
+    ws1 = fc * 1.2 * 2 / fs
+    rp1 = 1
+    rs1 = 5
+    [n1, wn1] = signal.buttord(wp1, ws1, rp1, rs1)
     [b1, a1] = signal.butter(n1, wn1)
+    y_filt = signal.filtfilt(b1, a1, y)
+    return y_filt
+
+def bandpass_simpack(y, dt, fc=0.4, n1=4) :
+    """
+    1st order low pass filter
+    """
+    from scipy import signal
+    fs = 1 / dt
+    ## python
+    # fmin_1edge = fc - 0.1
+    # fmax_1edge = fc + 0.1
+    # wp2 = [fmin_1edge * 2 / fs, fmax_1edge * 2 / fs]
+    # ws2 = [fmin_1edge * 0.9 * 2 / fs, fmax_1edge * 1.1 * 2 / fs]
+    # rp2 = 5
+    # rs2 = 12
+    # [n2, wn2] = signal.buttord(wp2, ws2, rp2, rs2)
+    # [b1, a1] = signal.butter(n2, wn2, btype='bandpass')
+    ## simpack
+    n2 = n1
+    wn2 = [(fc-0.05) * 2 / fs, (fc+0.05) * 2 / fs]
+    [b1, a1] = signal.butter(n2, wn2, btype='bandpass')
+    y_filt = signal.filtfilt(b1, a1, y)
+    return y_filt
+
+def bandpass_python(y, dt, fc=0.4, n1=4) :
+    """
+    1st order low pass filter
+    """
+    from scipy import signal
+    fs = 1 / dt
+    ## python
+    fmin_1edge = fc - 0.1
+    fmax_1edge = fc + 0.1
+    wp2 = [fmin_1edge * 2 / fs, fmax_1edge * 2 / fs]
+    ws2 = [fmin_1edge * 0.9 * 2 / fs, fmax_1edge * 1.1 * 2 / fs]
+    rp2 = 5
+    rs2 = 12
+    [n2, wn2] = signal.buttord(wp2, ws2, rp2, rs2)
+    [b1, a1] = signal.butter(n2, wn2, btype='bandpass')
+    ## simpack
+    # n2 = n1
+    # wn2 = [(fc-0.05) * 2 / fs, (fc+0.05) * 2 / fs]
+    # [b1, a1] = signal.butter(n2, wn2, btype='bandpass')
+
     y_filt = signal.filtfilt(b1, a1, y)
     return y_filt
 
@@ -238,12 +301,21 @@ def highpass1(y, dt, fc=3) :
 def applyFilter(x, y,filtDict):
     if filtDict['name']=='Moving average':
         return moving_average(y, n=np.round(filtDict['param']).astype(int))
-    elif filtDict['name']=='Low pass 1st order':
+    elif filtDict['name']=='Low pass simpack':
         dt = x[1]-x[0]
-        return lowpass1(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
+        return lowpass_simpack(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
+    elif filtDict['name']=='Low pass python':
+        dt = x[1]-x[0]
+        return lowpass_python(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
     elif filtDict['name']=='High pass 1st order':
         dt = x[1]-x[0]
         return highpass1(y, dt=dt, fc=filtDict['param'])
+    elif filtDict['name']=='Band pass simpack':
+        dt = x[1]-x[0]
+        return bandpass_simpack(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
+    elif filtDict['name']=='Band pass python':
+        dt = x[1]-x[0]
+        return bandpass_python(y, dt=dt, fc=filtDict['param'], n1=filtDict['param_n1'])
     else:
         raise NotImplementedError('{}'.format(filtDict))
 
